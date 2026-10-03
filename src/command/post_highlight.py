@@ -6,7 +6,6 @@ import os
 from typing import Optional
 
 from src.command.command import Command, Priority
-from src.config.teams import is_team_filtered
 from src.data.highlight import Highlight
 from src.logger import log
 from src.output import output
@@ -35,16 +34,8 @@ class PostHighlight(Command):
             if scoring_abbrev is None and self.highlight.event is not None:
                 scoring_abbrev = getattr(self.highlight.event, "team_abbrev", None)
 
-            if not is_team_filtered(scoring_abbrev):
-                log.info(
-                    "Skipping highlight "
-                    + str(self.highlight.id)
-                    + " — scoring team "
-                    + str(scoring_abbrev)
-                    + " is not in FILTER_TEAMS"
-                )
-                self.highlight.post_id = {"_filtered": None}
-                return
+            # No per-scorer filter: schedule already limits to games involving FILTER_TEAMS,
+            # so we post goals for and against those teams.
 
             text    : Optional[str] = self.highlight.get_post()
             footer  : Optional[str] = self.highlight.get_footer()

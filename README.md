@@ -87,5 +87,5 @@ Use the short team codes (abbreviations), separated by commas.
 | Montreal | MTL | Washington | WSH |
 | Nashville | NSH | Winnipeg | WPG |
 
-- If you set `FILTER_TEAMS`, the bot only watches games involving those teams, and only posts when **those teams score**.
+- If you set `FILTER_TEAMS`, the bot only watches games involving those teams, and posts **every goal in those games** (for or against your teams).
 - If you leave it blank, the bot posts every NHL goal (original behaviour).

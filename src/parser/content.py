@@ -8,7 +8,6 @@ from typing import Optional
 from src.command.command_queue import command_queue
 from src.command.post_highlight import PostHighlight
 from src.command.post_reply import PostReply
-from src.config.teams import is_team_filtered
 from src.data.highlight import Highlight
 from src.highlight_list import HighlightList
 from src.logger import log
@@ -42,16 +41,8 @@ class ContentParser(Parser):
         )
         self.highlight_list.add(highlight)
 
-        # Enforce team filter BEFORE queueing a Discord post
-        if not is_team_filtered(getattr(highlight, "team_abbrev", None)):
-            log.info(
-                "Skipping post — team "
-                + str(getattr(highlight, "team_abbrev", None))
-                + " is not in FILTER_TEAMS"
-            )
-            highlight.post_id = {"_filtered": None}
-            return
-
+        # Games are already limited to FILTER_TEAMS in the schedule.
+        # Post every goal in those games (for or against your teams).
         if highlight.event is not None:
             highlight.post_id = {"_queued": None}
             command_queue.enqueue(PostHighlight(highlight))

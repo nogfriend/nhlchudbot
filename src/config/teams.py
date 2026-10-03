@@ -8,7 +8,7 @@ NHL team abbreviations. Example:
 
 When set:
   - Only games involving those teams are tracked.
-  - Only goals scored BY those teams are posted to Discord.
+  - Every goal in those games is posted (scored by your team OR against your team).
 
 When empty or unset, every team is included (original behaviour).
 """
