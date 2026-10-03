@@ -2,6 +2,7 @@
 This module defines the Post Highlight command.
 """
 
+import os
 from typing import Optional
 
 from src.command.command import Command, Priority
@@ -9,6 +10,7 @@ from src.config.teams import is_team_filtered
 from src.data.highlight import Highlight
 from src.logger import log
 from src.output import output
+from src.output import video
 
 # pylint: disable=too-few-public-methods
 class PostHighlight(Command):
@@ -26,6 +28,7 @@ class PostHighlight(Command):
         Execute the command.
         """
         self.highlight.is_pending = True
+        local_file: Optional[str] = None
 
         try:
             scoring_abbrev = getattr(self.highlight, "team_abbrev", None)
@@ -64,27 +67,51 @@ class PostHighlight(Command):
                 self.highlight.post_id = {}
                 return
 
-            # Prefer a shareable NHL video link in the message. This avoids slow/fragile
-            # mp4 downloads that were causing missed posts.
-            video_link = self.highlight.video
-            if video_link and video_link not in text:
-                text = text.rstrip() + "\n" + video_link
-
             log.info(
                 "Posting highlight "
                 + str(self.highlight.id)
                 + " team="
                 + str(scoring_abbrev)
-                + " text_chars="
-                + str(len(text))
             )
 
             duplicate_status = output.has_posted_today(text)
             all_outputs_duplicate = len(duplicate_status) > 0 and all(duplicate_status.values())
             any_output_duplicate = any(duplicate_status.values())
 
-            # Text-only post (link included). Fast and reliable for Discord webhooks.
-            result = output.post(text)
+            if all_outputs_duplicate:
+                log.info(
+                    "Highlight "
+                    + str(self.highlight.id)
+                    + " already posted today — skipping."
+                )
+                self.highlight.post_id = {"_duplicate": None}
+                return
+
+            # Download the mp4 first (try primary + alternate clip IDs)
+            local_file = f"highlight_{self.highlight.id}.mp4"
+            urls = self.highlight.video_urls()
+            downloaded = video.download_first_working(urls, local_file)
+
+            if downloaded and os.path.exists(local_file) and os.path.getsize(local_file) > 0:
+                log.info(
+                    "Video ready for Discord upload: "
+                    + local_file
+                    + " ("
+                    + str(os.path.getsize(local_file))
+                    + " bytes)"
+                )
+                result = output.post_with_media(text, local_file, duplicate_status)
+            else:
+                log.error(
+                    "Could not download video for highlight "
+                    + str(self.highlight.id)
+                    + " — posting text with link as last resort."
+                )
+                share = getattr(self.highlight, "sharing_url", None) or self.highlight.video
+                fallback = text.rstrip()
+                if share and share not in fallback:
+                    fallback = fallback + "\n" + share
+                result = output.post(fallback)
 
             if any(post_id is not None for post_id in result.values()):
                 log.info(
@@ -96,15 +123,8 @@ class PostHighlight(Command):
                 self.highlight.post_id = result
                 return
 
-            if all_outputs_duplicate or any_output_duplicate:
-                log.info(
-                    "Highlight "
-                    + str(self.highlight.id)
-                    + " treated as duplicate for today."
-                )
-                terminal_duplicate_result = dict(result)
-                terminal_duplicate_result["_duplicate"] = None
-                self.highlight.post_id = terminal_duplicate_result
+            if any_output_duplicate:
+                self.highlight.post_id = {"_duplicate": None}
                 return
 
             log.error(
@@ -115,3 +135,5 @@ class PostHighlight(Command):
             self.highlight.post_id = {}
         finally:
             self.highlight.is_pending = False
+            if local_file and os.path.exists(local_file):
+                video.remove(local_file)

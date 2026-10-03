@@ -21,7 +21,7 @@ os.environ.setdefault("IMAGEIO_FFMPEG_EXE", FFMPEG_PATH)
 MAXIMUM_DURATION=100 # seconds
 MAXIMUM_SIZE=100000000 # bytes
 
-DOWNLOAD_RETRY_DELAY_SECONDS = 10
+DOWNLOAD_RETRY_DELAY_SECONDS = 3
 DELETE_RETRY_ATTEMPTS = 5
 DELETE_RETRY_DELAY_SECONDS = 0.5
 
@@ -35,19 +35,25 @@ def download_file(url : str, filename : str) -> bool:
         "quiet": True,
         "noplaylist": True,
         "retries": 3,
+        "fragment_retries": 3,
         "ffmpeg_location": FFMPEG_PATH,
+        # Prefer a real mp4 when the source offers multiple formats
+        "format": "mp4/best",
+        "merge_output_format": "mp4",
     }
 
     with yt_dlp.YoutubeDL(options) as ydl:
         try:
             ydl.download([url])
-            return True
+            if os.path.exists(filename) and os.path.getsize(filename) > 0:
+                return True
+            log.error("Download finished but file missing/empty: " + filename)
         except urllib.error.HTTPError:
             log.error("HTTP error occurred while attempting download.")
         except ExtractorError:
             log.error("Extractor error occurred while attempting download.")
-        except DownloadError:
-            log.error("Download error occurred while attempting download.")
+        except DownloadError as exc:
+            log.error("Download error occurred while attempting download: " + str(exc))
     return False
 
 def download(url : str, filename : str) -> bool:
@@ -56,15 +62,24 @@ def download(url : str, filename : str) -> bool:
     Returns true when a file was downloaded successfully.
     """
     is_downloaded : bool = False
-    max_attempts  : int  = 5
+    max_attempts  : int  = 3
 
     # Attempt to download until the download is successful. Give up if we exceed the maximum
     # number of attempts.
     log.info("Attempting download from url: " + url)
-    for _ in range(max_attempts):
+    for attempt in range(max_attempts):
         is_downloaded = download_file(url, filename)
         if is_downloaded:
+            log.info("Download succeeded: " + filename)
             break
+        log.warning(
+            "Download attempt "
+            + str(attempt + 1)
+            + "/"
+            + str(max_attempts)
+            + " failed for: "
+            + url
+        )
         time.sleep(DOWNLOAD_RETRY_DELAY_SECONDS)
 
     return is_downloaded
@@ -155,3 +170,22 @@ def remove(file : str) -> None:
             # Cleanup failures should not terminate the posting thread.
             log.error("Failed to remove file: " + file + " - " + str(err))
             return
+
+
+def download_first_working(urls, filename: str) -> bool:
+    """
+    Try each URL until one downloads successfully.
+    """
+    for url in urls:
+        if not url:
+            continue
+        log.info("Attempting download from url: " + url)
+        if download(url, filename):
+            return True
+        # Remove partial file before next attempt
+        if os.path.exists(filename):
+            try:
+                os.remove(filename)
+            except OSError:
+                pass
+    return False

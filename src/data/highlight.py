@@ -40,6 +40,11 @@ class Highlight:
             or data.get("pptReplayUrl")
             or None
         )
+        discrete = data.get("discreteClip")
+        try:
+            self.discrete_id: Optional[int] = int(discrete) if discrete is not None else None
+        except (TypeError, ValueError):
+            self.discrete_id = None
 
         if self.game_data:
             self.event = EventParser(self.game_id, self.goal_id).parse()
@@ -53,12 +58,18 @@ class Highlight:
     @property
     def video(self) -> str:
         """
-        Return a URL for this highlight. Prefer the NHL sharing page (works in Discord
-        without downloading a large mp4). Fall back to Brightcove player URL.
+        Return the primary Brightcove player URL used to download the highlight mp4.
         """
-        if self.sharing_url:
-            return self.sharing_url
         return VIDEO_URL + str(self.id)
+
+    def video_urls(self) -> list:
+        """
+        Return candidate download URLs (primary clip, then discrete clip if different).
+        """
+        urls = [VIDEO_URL + str(self.id)]
+        if self.discrete_id and self.discrete_id != self.id:
+            urls.append(VIDEO_URL + str(self.discrete_id))
+        return urls
 
 
     def __str__(self) -> str:
