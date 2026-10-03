@@ -29,9 +29,23 @@ class Highlight:
         self.goal_id   : int                 = int(data["homeScore"]) + int(data["awayScore"])
         self.post_id   : Dict[str, Optional[Dict[str, str]]] = {}
         self.is_pending: bool                = False
+        # Prefer data from the goal payload itself (more reliable than a second fetch)
+        team_field = data.get("teamAbbrev") or {}
+        if isinstance(team_field, dict):
+            self.team_abbrev: Optional[str] = team_field.get("default")
+        else:
+            self.team_abbrev = str(team_field) if team_field else None
+        self.sharing_url: Optional[str] = (
+            data.get("highlightClipSharingUrl")
+            or data.get("pptReplayUrl")
+            or None
+        )
 
         if self.game_data:
             self.event = EventParser(self.game_id, self.goal_id).parse()
+            # Prefer event team_abbrev when available
+            if self.event is not None and getattr(self.event, "team_abbrev", None):
+                self.team_abbrev = self.event.team_abbrev
         else:
             log.error("Game data is null for game: " + str(game_id))
 
@@ -39,8 +53,11 @@ class Highlight:
     @property
     def video(self) -> str:
         """
-        Return the Brightcove URL for this highlight.
+        Return a URL for this highlight. Prefer the NHL sharing page (works in Discord
+        without downloading a large mp4). Fall back to Brightcove player URL.
         """
+        if self.sharing_url:
+            return self.sharing_url
         return VIDEO_URL + str(self.id)
 
 

@@ -155,13 +155,29 @@ def get_todays_games() -> Optional[List[int]]:
 def get_games_for_date(date: datetime) -> Optional[List[int]]:
     """
     Return the list of games for the provided date.
+    When FILTER_TEAMS is set, only games involving those teams are returned.
     """
+    from src.config.teams import game_involves_filtered_team
+
     try:
 
         data  : Optional[Any] = get_schedule_json_for_date(date)
         if data is not None:
             games : List[int]     = []
             for game in data["gameWeek"][0]["games"]:
+                home = game.get("homeTeam", {}).get("abbrev")
+                away = game.get("awayTeam", {}).get("abbrev")
+                if not game_involves_filtered_team(home, away):
+                    log.verbose(
+                        "Skipping game "
+                        + str(game.get("id"))
+                        + " ("
+                        + str(away)
+                        + " @ "
+                        + str(home)
+                        + ") — not in FILTER_TEAMS"
+                    )
+                    continue
                 games.append(game["id"])
             log.verbose("Games on " + date_to_string(date) + ": " + str(games))
             return games

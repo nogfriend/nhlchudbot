@@ -56,3 +56,36 @@ make analyze
 ## Deploy without keeping your laptop on
 
 See the deployment instructions below (GitHub + free always-on host, or GitHub Actions). The bot is a long-running process that must stay online during games, so a simple cron job is not enough.
+
+
+## Only post goals for certain teams
+
+Add another line to your `.env` file (or as an Environment Variable on Render):
+
+```
+FILTER_TEAMS=TOR,MTL
+```
+
+Use the short team codes (abbreviations), separated by commas.
+
+| Team | Code | Team | Code |
+|------|------|------|------|
+| Anaheim | ANA | New Jersey | NJD |
+| Boston | BOS | NY Islanders | NYI |
+| Buffalo | BUF | NY Rangers | NYR |
+| Calgary | CGY | Ottawa | OTT |
+| Carolina | CAR | Philadelphia | PHI |
+| Chicago | CHI | Pittsburgh | PIT |
+| Colorado | COL | San Jose | SJS |
+| Columbus | CBJ | Seattle | SEA |
+| Dallas | DAL | St. Louis | STL |
+| Detroit | DET | Tampa Bay | TBL |
+| Edmonton | EDM | Toronto | TOR |
+| Florida | FLA | Utah | UTA |
+| Los Angeles | LAK | Vancouver | VAN |
+| Minnesota | MIN | Vegas | VGK |
+| Montreal | MTL | Washington | WSH |
+| Nashville | NSH | Winnipeg | WPG |
+
+- If you set `FILTER_TEAMS`, the bot only watches games involving those teams, and only posts when **those teams score**.
+- If you leave it blank, the bot posts every NHL goal (original behaviour).

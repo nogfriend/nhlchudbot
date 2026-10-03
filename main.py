@@ -65,6 +65,16 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    # Log team filter + Discord config early so logs show what's active
+    from src.config.teams import get_filter_teams
+    get_filter_teams()
+    import os
+    wh = os.getenv("DISCORD_WEBHOOK_URL", "")
+    if wh:
+        logger.log.info("DISCORD_WEBHOOK_URL is set (ends with ..." + wh[-12:] + ")")
+    else:
+        logger.log.error("DISCORD_WEBHOOK_URL is NOT set — posts will fail.")
+
     if args.dry_run:
         output.dry_run = True
         logger.log.info("Dry run enabled. Using Printer output only (no Discord posts).")

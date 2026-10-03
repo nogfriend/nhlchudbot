@@ -8,6 +8,7 @@ from typing import Optional
 from src.command.command_queue import command_queue
 from src.command.post_highlight import PostHighlight
 from src.command.post_reply import PostReply
+from src.config.teams import is_team_filtered
 from src.data.highlight import Highlight
 from src.highlight_list import HighlightList
 from src.logger import log
@@ -32,14 +33,31 @@ class ContentParser(Parser):
         """
         Process a newly discovered highlight.
         """
-        log.info("Adding highlight to list: " + str(highlight.id))
+        log.info(
+            "Adding highlight to list: "
+            + str(highlight.id)
+            + " (team="
+            + str(getattr(highlight, "team_abbrev", None))
+            + ")"
+        )
         self.highlight_list.add(highlight)
+
+        # Enforce team filter BEFORE queueing a Discord post
+        if not is_team_filtered(getattr(highlight, "team_abbrev", None)):
+            log.info(
+                "Skipping post — team "
+                + str(getattr(highlight, "team_abbrev", None))
+                + " is not in FILTER_TEAMS"
+            )
+            highlight.post_id = {"_filtered": None}
+            return
 
         if highlight.event is not None:
             highlight.post_id = {"_queued": None}
             command_queue.enqueue(PostHighlight(highlight))
+            log.info("Queued PostHighlight for " + str(highlight.id))
         else:
-            log.error("Highlight event is none. Could not enqueue.")
+            log.error("Highlight event is none. Could not enqueue for " + str(highlight.id))
 
 
     def _process_existing_highlight(
@@ -116,7 +134,7 @@ class ContentParser(Parser):
         Return True when this highlight should not be retried.
         Successful posts and duplicate posts are terminal.
         """
-        if "_duplicate" in highlight.post_id:
+        if "_duplicate" in highlight.post_id or "_filtered" in highlight.post_id:
             return True
 
         if (

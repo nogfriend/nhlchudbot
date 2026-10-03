@@ -137,10 +137,11 @@ def post_with_media(
 
     downloaded_media = _download_media_once(media)
 
+    # If download fails, still post text (Discord will include the media URL when possible)
     if media and downloaded_media is None and not output.dry_run:
-        for outputter in outputters_to_send:
-            post_ids[outputter.name()] = None
-        return post_ids
+        log.warning(
+            "Media download failed; posting text only (with link when available)."
+        )
 
     try:
         media_source = downloaded_media if downloaded_media is not None else media
@@ -187,9 +188,9 @@ def reply_with_media(
     downloaded_media = _download_media_once(media)
 
     if media and downloaded_media is None and not output.dry_run:
-        for outputter in outputters_to_send:
-            post_ids[outputter.name()] = None
-        return post_ids
+        log.warning(
+            "Media download failed; posting text only (with link when available)."
+        )
 
     try:
         media_source = downloaded_media if downloaded_media is not None else media

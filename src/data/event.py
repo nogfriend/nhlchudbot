@@ -46,14 +46,24 @@ def get_secondary_assist(data : Any) -> Optional[str]:
     return player
 
 
-def get_team(data : Any) -> Optional[str]:
+def get_team_abbrev(data : Any) -> Optional[str]:
     """
-    Return the location string for the team in the given event.
+    Return the team abbreviation (e.g. TOR) for the team in the given event.
     """
     if data and "teamAbbrev" in data:
         abbreviation : Optional[str] = data.get("teamAbbrev", {}).get("default")
         if abbreviation:
-            return abbreviation_to_location.get(abbreviation, None)
+            return abbreviation
+    return None
+
+
+def get_team(data : Any) -> Optional[str]:
+    """
+    Return the location string for the team in the given event.
+    """
+    abbreviation = get_team_abbrev(data)
+    if abbreviation:
+        return abbreviation_to_location.get(abbreviation, None)
     return None
 
 
@@ -95,6 +105,7 @@ class Event:
         self.time             : str           = get_time_remaining(period, data)
         self.score            : Score         = Score(data)
         self.team             : Optional[str] = get_team(data)
+        self.team_abbrev      : Optional[str] = get_team_abbrev(data)
         self.scorer           : Optional[str] = to_name(data)
         self.primary_assist   : Optional[str] = get_primary_assist(data)
         self.secondary_assist : Optional[str] = get_secondary_assist(data)
